@@ -55,13 +55,13 @@ def create_model_info(architecture):
     elif architecture.startswith('mobilenet_'):
         parts = architecture.split('_')
         if len(parts) != 3 and len(parts) != 4:
-            tf.logging.error("Couldn't understand architecture name '%s'",
+            tf.compat.v1.logging.error("Couldn't understand architecture name '%s'",
                              architecture)
             return None
         version_string = parts[1]
         if (version_string != '1.0' and version_string != '0.75' and
                     version_string != '0.50' and version_string != '0.25'):
-            tf.logging.error(
+            tf.compat.v1.logging.error(
                 """"The Mobilenet version should be '1.0', '0.75', '0.50', or '0.25',
         but found '%s' for architecture '%s'""",
                 version_string, architecture)
@@ -69,7 +69,7 @@ def create_model_info(architecture):
         size_string = parts[2]
         if (size_string != '224' and size_string != '192' and
                     size_string != '160' and size_string != '128'):
-            tf.logging.error(
+            tf.compat.v1.logging.error(
                 """The Mobilenet input size should be '224', '192', '160', or '128',
        but found '%s' for architecture '%s'""",
                 size_string, architecture)
@@ -78,7 +78,7 @@ def create_model_info(architecture):
             is_quantized = False
         else:
             if parts[3] != 'quantized':
-                tf.logging.error(
+                tf.compat.v1.logging.error(
                     "Couldn't understand architecture suffix '%s' for '%s'", parts[3],
                     architecture)
                 return None
@@ -100,7 +100,7 @@ def create_model_info(architecture):
         input_mean = 127.5
         input_std = 127.5
     else:
-        tf.logging.error("Couldn't understand architecture name '%s'", architecture)
+        tf.compat.v1.logging.error("Couldn't understand architecture name '%s'", architecture)
         raise ValueError('Unknown architecture', architecture)
 
     return {
@@ -142,7 +142,7 @@ def maybe_download_and_extract(data_url, dest_directory):
         filepath, _ = urllib.request.urlretrieve(data_url, filepath, _progress)
         print()
         statinfo = os.stat(filepath)
-        tf.logging.info('Successfully downloaded', filename, statinfo.st_size,
+        tf.compat.v1.logging.info('Successfully downloaded', filename, statinfo.st_size,
                         'bytes.')
     tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
@@ -160,7 +160,7 @@ def create_model_graph(model_info):
     with tf.Graph().as_default() as graph:
         model_path = os.path.join(FLAGS.model_dir, model_info['model_file_name'])
         with gfile.FastGFile(model_path, 'rb') as f:
-            graph_def = tf.GraphDef()
+            graph_def = tf.compat.v1.GraphDef()
             graph_def.ParseFromString(f.read())
             bottleneck_tensor, resized_input_tensor = (tf.import_graph_def(
                 graph_def,
@@ -186,7 +186,7 @@ def create_model_graph_bis(model_info, model_dir):
     with tf.Graph().as_default() as graph:
         model_path = os.path.join(model_dir, model_info['model_file_name'])
         with gfile.FastGFile(model_path, 'rb') as f:
-            graph_def = tf.GraphDef()
+            graph_def = tf.compat.v1.GraphDef()
             graph_def.ParseFromString(f.read())
             bottleneck_tensor, resized_input_tensor = (tf.import_graph_def(
                 graph_def,
@@ -213,13 +213,13 @@ def add_jpeg_decoding(input_width, input_height, input_depth, input_mean,
       Tensors for the node to feed JPEG data into, and the output of the
         preprocessing steps.
     """
-    jpeg_data = tf.placeholder(tf.string, name='DecodeJPGInput')
+    jpeg_data = tf.compat.v1.placeholder(tf.string, name='DecodeJPGInput')
     decoded_image = tf.image.decode_jpeg(jpeg_data, channels=input_depth)
     decoded_image_as_float = tf.cast(decoded_image, dtype=tf.float32)
     decoded_image_4d = tf.expand_dims(decoded_image_as_float, 0)
     resize_shape = tf.stack([input_height, input_width])
     resize_shape_as_int = tf.cast(resize_shape, dtype=tf.int32)
-    resized_image = tf.image.resize_bilinear(decoded_image_4d,
+    resized_image = tf.compat.v1.image.resize_bilinear(decoded_image_4d,
                                              resize_shape_as_int)
     offset_image = tf.subtract(resized_image, input_mean)
     mul_image = tf.multiply(offset_image, 1.0 / input_std)
@@ -257,12 +257,12 @@ def run_bottleneck_on_image(sess, image_data, image_data_tensor,
 def get_bottlenecks_values(image_dir, architecture='mobilenet_1.0_224', model_dir='./model/'):
     # Needed to make sure the logging output is visible.
     # See https://github.com/tensorflow/tensorflow/issues/3047
-    tf.logging.set_verbosity(tf.logging.INFO)
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
     # Gather information about the model architecture we'll be using.
     model_info = create_model_info(architecture)
     if not model_info:
-        tf.logging.error('Did not recognize architecture flag')
+        tf.compat.v1.logging.error('Did not recognize architecture flag')
         return -1
 
     # Set up the pre-trained graph.
@@ -276,7 +276,7 @@ def get_bottlenecks_values(image_dir, architecture='mobilenet_1.0_224', model_di
 
     bottlenecks = np.zeros((len(image_paths), model_info['bottleneck_tensor_size']))
 
-    with tf.Session(graph=graph) as sess:
+    with tf.compat.v1.Session(graph=graph) as sess:
         # Set up the image decoding sub-graph.
         jpeg_data_tensor, decoded_image_tensor = add_jpeg_decoding(
             model_info['input_width'], model_info['input_height'],

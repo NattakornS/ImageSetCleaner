@@ -147,6 +147,7 @@ def semi_supervised_detection(image_set, clustering_method, architecture, pollut
     :param pollution_percent: Fraction of pollution added to our image values.
     :return: A prediction vector, that is altered by a given amount of random data, to hopefuly get a better performance.
     """
+    print('pollution percent :', pollution_percent)
 
     pollution_points = int(image_set.shape[0] * pollution_percent)
     pollution_points, pollution_set = grabbing_pollution(architecture, pollution_dir, pollution_points)
